@@ -1,0 +1,38 @@
+- name: "Playbook to provision the VMs"
+  hosts: host_machine
+  gather_facts: false
+  become: yes
+  tasks:
+  - name: "Getting Hostnames of all masters,slaves and storing at /tmp/hostnames_vm.out in comma seperated form"
+    template:
+      src: ./get_hostnames.j2
+      dest: /tmp/hostnames_vm.out
+  - name: "Getting IPs of all masters,slaves and storing at /tmp/ips_vm.out in comma seperated form"
+    template:
+      src: ./get_ips.j2
+      dest: /tmp/ips_vm.out
+  - name: "Getting MACID of all masters and storing at /tmp/macid_vm.out in comma seperated form"
+    template:
+      src: ./get_macid.j2
+      dest: /tmp/macid_vm.out
+  - name: "Getting RAM of all masters and storing at /tmp/ram_vm.out in comma seperated form"
+    template:
+      src: ./get_ram.j2
+      dest: /tmp/ram_vm.out
+  - name: "Getting DISK CAPACITY of all masters and storing at /tmp/disk_vm.out in comma seperated form"
+    template:
+      src: ./get_disk.j2
+      dest: /tmp/disk_vm.out
+  - name: "Getting CPU of all masters and storing at /tmp/cpu_vm.out in comma seperated form"
+    template:
+      src: ./get_cpu.j2
+      dest: /tmp/cpu_vm.out
+  - name: "Creating shared folder in HOST MACHINE"
+    file:
+      state: directory
+      path: "/home/{{ ansible_ssh_user }}/{{ SERVER_SHARE_DRIVE }}"
+  - name: "Creating Network and VMs now, Please wait ........................"
+    script:
+       cmd: ./VM_Create.sh "{{ VM_NETWORK_NAME }}" "{{ PUB_KEY }}" "{{ image_url }}" "{{ download_image_name }}" "{{ VM_USER }}" "{{ ansible_ssh_user }}" "{{ VERSION }}" "{{ VM_GATEWAY_ADDR }}" "{{ VM_DHCP_START_ADDR }}" "{{ VM_DHCP_END_ADDR }}" "{{ VM_NETMASK }}" "{{ VM_NETWORK_BRIDGE }}">/tmp/vm.log 2>&1
+  
+      

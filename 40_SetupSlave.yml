@@ -1,0 +1,143 @@
+- name: "Playbook to setup Slave Nodes"
+  hosts: slaves
+  gather_facts: false
+  become: yes
+  vars:
+   keys: "/root/slave_keys"
+  tasks:
+  
+  - name: "Create ~/keys directory in slave node"
+    file:
+     state: directory
+     path: "{{ keys }}"
+     
+  - name: "Distribute Keys and Certficates to slave node"
+    copy:
+     src: "{{ item }}"
+     dest: "{{ keys }}"
+    with_items:
+     - "{{ KEYS_PATH }}/{{ hostvars[inventory_hostname].node_hostname }}.kubeconfig"
+     - "{{ KEYS_PATH }}/kube-proxy.kubeconfig"
+     - "{{ KEYS_PATH }}/ca.pem"
+     - "{{ KEYS_PATH }}/{{ hostvars[inventory_hostname].node_hostname }}.pem"
+     - "{{ KEYS_PATH }}/{{ hostvars[inventory_hostname].node_hostname }}-key.pem"
+     
+     
+  - name: "Copying Executables tar file in slave node /root/"
+    copy:
+      src: "{{ SLAVE_SETUP_TAR_SOURCE }}"
+      dest: "~/"  
+
+  - name: "Extracting Executables(kube-proxy,kubelet,kubectl,docker* ) in slave node /usr/local/bin"
+    unarchive:
+      src: "~/slave.tar.gz"
+      dest: "/usr/local/bin"
+      remote_src: yes
+
+  - name: "Create few directories in slave node"
+    file:
+     state: directory
+     path: "{{ item }}"
+    with_items:
+      - "/etc/cni/net.d"
+      - "/opt/cni/bin"
+      - "/var/lib/kubelet"
+      - "/var/lib/kube-proxy"
+      - "/var/lib/kubernetes"
+      
+  - name: "Installing CNI PLUGINs in slave node"
+    unarchive:
+       src: "{{ SLAVE_CNI_SETUP_TAR_SOURCE }}"
+       dest: "/opt/cni/bin/"
+     
+  - name: "Installing packages (socat, conntrack, ipset) in slave node"
+    apt:
+      name:
+        - socat
+        - conntrack
+        - ipset
+      state: present
+    
+  - name: "Disable SWAP"
+    shell: "swapoff -a"
+    
+  - name: "Copy keys and certificates to their respective location"
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      remote_src: yes
+    with_items:
+      - src: "{{ keys }}/ca.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/{{ hostvars[inventory_hostname].node_hostname }}.kubeconfig"
+        dest: /var/lib/kubelet/kubeconfig
+      - src: "{{ keys }}/{{ hostvars[inventory_hostname].node_hostname }}-key.pem"
+        dest: /var/lib/kubelet/
+      - src: "{{ keys }}/{{ hostvars[inventory_hostname].node_hostname }}.pem"
+        dest: /var/lib/kubelet/
+      - src: "{{ keys }}/kube-proxy.kubeconfig"
+        dest: /var/lib/kube-proxy/kubeconfig
+        
+  - name: "Setting Up Network in Slave"
+    script:
+        cmd: ./slave/create_kube_network.sh "{{ hostvars[inventory_hostname].POD_CIDR }}"
+  
+  - name: "Creating Docker Service"
+    script:
+        cmd: ./slave/create_docker.service.sh
+        
+  - name: "Creating kubelet-config.yaml configuration"
+    script:
+        cmd: ./slave/create_kubelet-config.yaml.sh "{{ hostvars[inventory_hostname].POD_CIDR }}" "{{ hostvars[inventory_hostname].node_hostname }}"
+        
+  - name: "Creating KUBELET service"
+    script:
+        cmd: ./slave/create_kubelet.service.sh "{{ hostvars[inventory_hostname].node_hostname }}"
+        
+  - name: "Creating kube-proxy-config.yaml configuration"
+    script:
+      cmd: ./slave/create_kube-proxy-config.yaml.sh
+      
+  - name: "Creating KUBER-PROXY service"
+    script:
+      cmd: ./slave/create_kube-proxy.service.sh
+      
+  - name: "Reload &  Restart DOCKER , KUBELET , KUBE-PROXY"
+    systemd: 
+        name: "{{ item }}"
+        daemon_reload: yes
+        enabled: yes
+        state: restarted
+    with_items:
+        - docker 
+        - kubelet
+        - kube-proxy
+      
+      
+  # - name: "Delete old manual routes if exist"
+  #   shell: "ip route del {{ hostvars[item]['POD_CIDR'] }} via {{ ansible_host }}"
+  #   with_items: "{{ groups['slaves'] }}"
+  #   when: "item !=  inventory_hostname"
+  #   ignore_errors: yes
+    
+  # - name: "Add new manual routes"
+  #   shell: "ip route add {{ hostvars[item]['POD_CIDR'] }} via {{ ansible_host }}"
+  #   with_items: "{{ groups['slaves'] }}"
+  #   when: "item !=  inventory_hostname"
+  #   ignore_errors: yes       
+    
+  - name: "To remove DNS related errors loading kernel module "
+    shell: |
+        modprobe br_netfilter
+        
+  - name: "Create Softlink /run/systemd/resolve--> /run/resolvconf/" 
+    file:
+      src: /run/resolvconf/
+      dest: /run/systemd/resolve
+      state: link
+       
+       
+   
+   
+   
+   

@@ -1,0 +1,36 @@
+- name: "Working on remote manager to configure master"
+  hosts: remote_manager
+  gather_facts: false
+  
+  tasks:
+  - name: "Installing cfssl tools & kubectl in remote manager"
+    become: yes
+    copy:
+     src: ./remote_manager/{{ item }}
+     dest:  /usr/local/bin/
+    with_items:
+      - cfssl
+      - cfssljson
+      - kubectl
+    
+  - name: "Getting IPs of all masters and storing at /tmp/master_ips.out"
+    template:
+      src: get_master_ips.j2
+      dest: /tmp/master_ips.out
+      
+  - name: "Getting Hostnames of all masters and storing at /tmp/master_hostnames.out"
+    template:
+      src: get_master_hostnames.j2
+      dest: /tmp/master_hostnames.out
+      
+  - name: "Creating keys & Certificates for managers"
+    shell: |
+       ips=$(cat /tmp/master_ips.out)
+       host_names=$(cat /tmp/master_hostnames.out)
+       cs_name="{{ cluster_name }}"
+       public_address="{{ KUBERNETES_PUBLIC_ADDRESS }}"
+       mkdir -p  {{ KEYS_PATH }}
+       cd {{ KEYS_PATH }}
+       ~/DEVELOPMENT/coding/k8s/remote_manager/master-keys-generate.sh "$host_names" "$ips" "$cs_name" "$public_address" 
+       
+ 

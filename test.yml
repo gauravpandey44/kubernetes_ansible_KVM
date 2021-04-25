@@ -1,0 +1,10 @@
+- name: "Testing"
+  hosts: slaves
+  gather_facts: false
+  become: yes
+  tasks:
+  - name: "check all slaves"
+    debug :
+     msg: "{{ hostvars[item]['zerotier_ip'] }} {{ hostvars[item]['POD_CIDR'] }}"
+    with_items: "{{ groups['slaves'] }}"
+    when: "item !=  inventory_hostname"

@@ -1,0 +1,154 @@
+- name: "Playbook to setup Master Nodes"
+  hosts: masters
+  gather_facts: false
+  become: yes
+  vars:
+   keys: "/root//master_keys"
+        
+  tasks:
+  
+  - name: "Create ~/keys directory in master node"
+    file:
+     state: directory
+     path: "{{ keys }}"
+     
+  - name: "Distribute Keys and Certficates to master node"
+    copy:
+     src: "{{ item }}"
+     dest: "{{ keys }}"
+    with_items:
+     - "{{ KEYS_PATH }}/admin.kubeconfig"
+     - "{{ KEYS_PATH }}/kube-controller-manager.kubeconfig"
+     - "{{ KEYS_PATH }}/kube-scheduler.kubeconfig"
+     - "{{ KEYS_PATH }}/ca.pem"
+     - "{{ KEYS_PATH }}/kubernetes.pem"
+     - "{{ KEYS_PATH }}/kubernetes-key.pem" 
+     - "{{ KEYS_PATH }}/ca-key.pem"
+     - "{{ KEYS_PATH }}/service-account-key.pem"
+     - "{{ KEYS_PATH }}/service-account.pem"
+     - "{{ KEYS_PATH }}/encryption-config.yaml"
+     
+     
+  - name: "Copying Executables tar file in master node /root/"
+    copy:
+      src: "{{ MASTER_SETUP_TAR_SOURCE }}"
+      dest: "~/"   
+      
+  - name: "Extracting Executables (etcd,etcdctl,kube-apiserver,kube-controller-manager,kubectl,kube-scheduler) >
+       in master node /usr/local/bin"
+       
+    unarchive:
+      src: "~/master.tar.gz"
+      dest: "/usr/local/bin"
+      remote_src: yes
+      
+  - name: "Delete old directories in master node"
+    file:
+      state: absent
+      path: "{{ item }}"
+    with_items:
+        - "/etc/kubernetes/config"
+        - "/etc/etcd"
+        - "/var/lib/etcd"
+        - "/var/lib/kubernetes"
+        
+  - name: "Create new directories in master node"
+    file:
+      state: directory
+      path: "{{ item }}"
+    with_items:
+        - "/etc/kubernetes/config"
+        - "/etc/etcd"
+        - "/var/lib/etcd"
+        - "/var/lib/kubernetes"
+        
+  - name: "Copy keys and certificates to their respective location"
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      remote_src: yes
+    with_items:
+      - src: "{{ keys }}/ca.pem"
+        dest: /etc/etcd/
+      - src: "{{ keys }}/kubernetes-key.pem"
+        dest: /etc/etcd/
+      - src: "{{ keys }}/kubernetes.pem"
+        dest: /etc/etcd/
+      - src: "{{ keys }}/ca.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/ca-key.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/kubernetes-key.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/service-account-key.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/service-account.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/encryption-config.yaml"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/kubernetes.pem"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/kube-scheduler.kubeconfig"
+        dest: /var/lib/kubernetes/
+      - src: "{{ keys }}/kube-controller-manager.kubeconfig"
+        dest: /var/lib/kubernetes/
+        
+  - name: "Getting Hostnames of all masters and storing at /tmp/master_hostnames.out in comma seperated form"
+    template:
+      src: ./get_master_hostnames.j2
+      dest: /tmp/master_hostnames.out
+      
+  - name: "Getting IPs of all masters and storing at /tmp/master_ips.out in comma seperated form"
+    template:
+      src: ./get_master_ips.j2
+      dest: /tmp/master_ips.out
+      
+  - name: "Create ETCD service"
+    script:
+       cmd: ./master/create_etcd.service.sh "{{ hostvars[inventory_hostname].node_hostname }}" "{{ inventory_hostname }}"
+    
+  - name: "Create API-SERVER service"
+    script:
+       cmd: ./master/create_api-server.service.sh "{{ hostvars[inventory_hostname].node_hostname }}" "{{ inventory_hostname }}"
+     
+  - name: "Create Controller Manager service"
+    script:
+       cmd: ./master/create_controller-manager.service.sh
+     
+  - name: "Create KUBE-SCHEDULER CONFIGURATION FILE"
+    script:
+       cmd: ./master/create_kube-scheduler.yaml.sh
+
+  - name: "Create KUBE-SCHEDULER CONFIGURATION FILE"
+    script:
+       cmd: ./master/create_kube-scheduler.service.sh
+
+
+  - name: "Reload &  Restart API-SERVER , KUBE-CONTROLLER , KUBE-SCHEDULER"
+    systemd: 
+        name: "{{ item }}"
+        daemon_reload: yes
+        enabled: yes
+        state: restarted
+    with_items:
+        - etcd
+        - kube-apiserver 
+        - kube-controller-manager 
+        - kube-scheduler
+        
+  - name: "Sleep for 60 sec for services to be fully started"
+    wait_for:
+      delay: 60
+      timeout: 0
+        
+  - name: "Apply RBAC for Kubelet Authorization in master node"
+    script:
+      cmd: ./master/apply_RBAC.sh "{{ keys }}"
+
+
+        
+
+  
+  
+  
+

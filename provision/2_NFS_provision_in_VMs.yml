@@ -1,0 +1,24 @@
+- name: "Playbook to provision the NFS shared storage in VMs"
+  hosts: k8
+  gather_facts: false
+  become: yes
+  tasks:
+  - name: "Create a share drive mount point in Guest VMs"
+    file:
+      state: directory
+      path: /home/{{ VM_USER }}/SHARE
+
+  - name: "Adding shared drive mount point entry in /etc/fstab"
+    lineinfile: 
+      path: /etc/fstab
+      line: "/home/{{ ansible_ssh_user }} /home/{{ VM_USER }}/SHARE  9p  trans=virtio,rw,_netdev   0   0"
+    notify: "Reboot VM"
+
+  
+  handlers:
+  - name: "Reboot VM"
+    reboot:
+     test_command: uptime
+
+
+   

@@ -1,0 +1,39 @@
+- name: "Working on remote manager to configure slave"
+  hosts: remote_manager
+  gather_facts: false
+  
+  tasks:
+  - name: "Installing cfssl tools & kubectl in remote manager"
+    become: yes
+    copy:
+     src: ./remote_manager/{{ item }}
+     dest:  /usr/local/bin/
+     mode: '0777'
+    with_items:
+      - cfssl
+      - cfssljson
+      - kubectl
+   
+  - name: "Getting Hostnames of all slaves and storing at /tmp/slave_hostnames.out"
+    template:
+      src: get_slave_hostnames.j2
+      dest: /tmp/slave_hostnames.out
+      
+  - name: "Getting IPs of all slaves and storing at /tmp/slave_ips.out"
+    template:
+      src: get_slave_ips.j2
+      dest: /tmp/slave_ips.out
+      
+  - name: "Creating keys & Certificates for slaves"
+    shell: |
+       ips=$(cat /tmp/slave_ips.out)
+       host_names=$(cat /tmp/slave_hostnames.out)
+       cs_name="{{ cluster_name }}"
+       public_address="{{ KUBERNETES_PUBLIC_ADDRESS }}"
+       mkdir -p  {{ KEYS_PATH }}
+       cd {{ KEYS_PATH }}
+       ~/DEVELOPMENT/coding/k8s/remote_manager/slave-keys-generate.sh "$host_names" "$ips" "$cs_name" "$public_address" 
+
+  
+  
+  

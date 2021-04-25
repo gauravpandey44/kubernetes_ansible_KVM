@@ -1,0 +1,8 @@
+{% for host in groups['masters'] -%}
+   {{ hostvars[host].node_hostname  }}
+   {%- if not loop.last %},{% endif -%}
+{%- endfor %}
+,{% for host in groups['slaves'] -%}
+   {{ hostvars[host].node_hostname  }}
+   {%- if not loop.last %},{% endif -%}
+{%- endfor %}

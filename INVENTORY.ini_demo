@@ -1,0 +1,70 @@
+# K8 cluster using Ansible
+
+#Load Balancer
+[lb]
+
+#Remote Access PC , can be your laptop
+[remote_manager]
+1.2.3.4 ansible_ssh_user=gaurav
+
+
+#HOST MACHINE WHERE KVM installed
+[host_machine]
+localhost ansible_ssh_user=gaurav image_url="https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img" download_image_name='bionic-server-cloudimg-amd64.img' VERSION="ubuntu18.04" 
+
+
+#add master public IP
+[masters]
+192.168.122.3 ansible_ssh_user=gaurav node_name=master1 node_hostname=master1.k8 macid=52:54:00:6c:3c:03 RAM='2048' CPU='2' DISK='8G'
+#192.168.122.8 ansible_ssh_user=gaurav node_name=master2 node_hostname=master2.k8 macid=52:54:00:6c:3c:08 RAM='2048' CPU='2' DISK='8G'
+
+
+#add slave public IP
+[slaves]
+192.168.122.4 ansible_ssh_user=gaurav node_name=slave1 node_hostname=slave1.k8 macid=52:54:00:6c:3c:04 POD_CIDR="10.200.2.0/24" RAM='2048' CPU='2' DISK='8G'
+192.168.122.5 ansible_ssh_user=gaurav node_name=slave2 node_hostname=slave2.k8 macid=52:54:00:6c:3c:05 POD_CIDR="10.200.3.0/24" RAM='2048' CPU='2' DISK='8G'
+
+
+#All servers of K8
+[k8:children]
+lb
+masters
+slaves
+
+[all:children]
+lb
+masters
+slaves
+remote_manager
+
+
+#variables for k8 cluster
+[k8:vars]
+ansible_ssh_user=ubuntu
+nameserver=1.2.3.4
+
+
+
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file=~/AWS/cloud/gaurav.priv
+ssh_config="~/.ssh/config"
+cluster_name="Kubernetes_by_Ansible"
+KUBERNETES_PUBLIC_ADDRESS=192.168.196.120
+KEYS_PATH="~/gen_keys"
+MASTER_SETUP_TAR_SOURCE="~/DEVELOPMENT/coding/k8s/master.tar.gz"
+SLAVE_SETUP_TAR_SOURCE="~/DEVELOPMENT/coding/k8s/slave.tar.gz"
+SLAVE_CNI_SETUP_TAR_SOURCE="~/DEVELOPMENT/coding/k8s/cni.tar.gz"
+SERVER_SHARE_DRIVE="KVM_SHARE" #NAS KVM SHARED DRIVE
+PUB_KEY="ssh-rsa AAAAB3NzwYbLF4bZ4mzS8urukUR+SijJiaNPcjGrkkYFZ5s1KX7XCHdY/qwyroKWrjGoZgR9PTLEgAxSuw36Zrqlu1tr2Q8qRDAy88E4u37/rBZ913cb6yeZXd/peqtSZTRlvdPZ0Hg6st//ATqijKe4fnhVz7lPifsyCAoH7wVH4MtiybG8uHAiIhxhoSGSbAP4NYCzEwtLkZ3HkznSS1OMysIh2btjut+EWLu3UH8EQNLPiHSulQGJ3r+XhjhPulabp+5CfKB6JHnutay28V49LhDtZUBy3leT7KMbOTgqpOTb+hBw== gauravpandey44"
+VM_NETWORK_NAME="default"
+VM_GATEWAY_ADDR="192.168.122.1"
+VM_DHCP_START_ADDR="192.168.122.2"
+VM_DHCP_END_ADDR="192.168.122.254"
+VM_NETMASK="255.255.255.0"
+VM_USER='gaurav' 
+VM_NETWORK_BRIDGE='virbr100'
+
+
+

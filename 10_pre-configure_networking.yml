@@ -1,0 +1,23 @@
+- name: "Playbook to  accomplish the prerequisites Networking"
+  hosts: k8
+  gather_facts: false
+  become: yes
+  user: root
+  tasks:
+  
+  - name: "Running apt update"
+    apt:
+     update_cache: yes
+     cache_valid_time: 21600 #6 hours
+
+  - name: "To remove DNS related errors loading kernel module"
+    shell: "modprobe br_netfilter"
+
+  - name: "Create a file to correct DNS issue inside pods"
+    shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+
+          
+       
+     
+
+

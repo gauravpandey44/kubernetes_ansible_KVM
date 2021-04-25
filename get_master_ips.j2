@@ -1,0 +1,4 @@
+{% for host in groups['masters'] -%}
+   {{ host }}
+   {%- if not loop.last %},{% endif -%}
+{%- endfor %}

@@ -1,0 +1,5 @@
+*.gz
+.ipynb_checkpoints
+INVENTORY.ini
+rclone.conf
+*.img

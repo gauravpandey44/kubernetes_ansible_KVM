@@ -1,0 +1,7 @@
+[google-drive]
+type = drive
+client_id = xxxxx.apps.googleusercontent.com
+client_secret = xxxxxxx
+token = {"access_token":"yQxyKXebLB0wjfjsoSnc4IF1FwQjccGYkwKO","token_type":"Bearer","refresh_token":"1//094FR","expiry":"2020-06-26T08:21:55.538534076+05:30"}
+root_folder_id = xxxxxx
+
