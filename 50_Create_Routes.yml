@@ -12,3 +12,9 @@
     shell: "ip route add {{ hostvars[item]['POD_CIDR'] }} via {{ item }} dev {{ VM_NETWORK_BRIDGE }}"
     with_items: "{{ groups['slaves'] }}"
     ignore_errors: yes  
+
+  - name: "To remove DNS related errors loading kernel module"
+    shell: "modprobe br_netfilter"
+
+  - name: "Create a file to correct DNS issue inside pods"
+    shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
